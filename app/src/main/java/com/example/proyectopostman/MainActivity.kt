@@ -31,7 +31,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var context: Context
 
-    private lateinit var pokemonService: PaisKey
+    private lateinit var PaisKey: PaisKey
     private var pageNumber = 0
     private var totalPages = 0
     private var allCards = mutableListOf<PaisCard>()
@@ -62,29 +62,29 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onQueryTextChange(newText: String?): Boolean {
-                buscarPokemon(newText)
+                buscarPais(newText)
                 return true
             }
         })
 
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://api.pokemontcg.io/v1/")
+            .baseUrl("https://apis.thatapicompany.com/9diyyzzwr4w8bf4r/countries")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
-        val pokemonService = retrofit.create(PaisKey::class.java)
+        val PaisKey = retrofit.create(PaisKey::class.java)
 
         binding.tvNo.visibility = View.VISIBLE
 // Se crea un Listener para la respuesta de la llamada a la API
-        pokemonService.getCards("c099e29e-2bde-4974-a532-cb7e2cf90072", 1)
+        PaisKey.getCards("d7t8frAA0E9DUTPZzYKNtNZNXiH1wcR1", 1)
             .enqueue(object : Callback<PaisResponse> {
                 // Se define la acción a realizar en caso de éxito en la llamada
                 override fun onResponse(
                     call: Call<PaisResponse>,
                     response: Response<PaisResponse>
                 ) {
-                    val pokemons = response.body()?.cards
-                    allCards.addAll(pokemons!!)
+                    val paises = response.body()?.cards
+                    allCards.addAll(paises!!)
 
 
 
@@ -103,7 +103,7 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onFailure(call: Call<PaisResponse>, t: Throwable) {
                     binding.tvNo.visibility = View.VISIBLE
-                    binding.tvNo.text = "No hay pokemon"
+                    binding.tvNo.text = "No se han encontrado países"
                 }
             })
 
@@ -122,14 +122,14 @@ class MainActivity : AppCompatActivity() {
                 binding.tvNo.visibility = View.VISIBLE
                 binding.tvNo.text = "Cargando ..."
                 val retrofit = Retrofit.Builder()
-                    .baseUrl("https://api.pokemontcg.io/v1/")
+                    .baseUrl("https://apis.thatapicompany.com/9diyyzzwr4w8bf4r/countries")
                     .addConverterFactory(GsonConverterFactory.create())
                     .build()
 
-                val pokemonService = retrofit.create(PaisKey::class.java)
+                val PaisKey = retrofit.create(PaisKey::class.java)
                 val selectedItem = spinner.getItemAtPosition(position) as Int
-                pokemonService.getCards("c099e29e-2bde-4974-a532-cb7e2cf90072", selectedItem)
-                    .enqueue(object : Callback<PaisKey> {
+                PaisKey.getCards("d7t8frAA0E9DUTPZzYKNtNZNXiH1wcR1", selectedItem)
+                    .enqueue(object : Callback<PaisResponse> {
                         override fun onResponse(
                             call: Call<PaisKey>,
                             response: Response<PaisKey>
@@ -139,8 +139,8 @@ class MainActivity : AppCompatActivity() {
                             val layoutManager = LinearLayoutManager(applicationContext)
                             binding.rvMain.layoutManager = layoutManager
                             binding.rvMain.adapter = miAdapter
-                            val pokemons = response.body()?.cards
-                            allCards.addAll(pokemons!!)
+                            val paises = response.body()?.cards
+                            allCards.addAll(paises!!)
 
                             if (response.isSuccessful) {
                                 binding.rvMain.visibility = View.VISIBLE
@@ -154,7 +154,13 @@ class MainActivity : AppCompatActivity() {
 
                         override fun onFailure(call: Call<PaisKey>, t: Throwable) {
                             binding.tvNo.visibility = View.VISIBLE
-                            binding.tvNo.text = "No hay pokemon"
+                            binding.tvNo.text = "No se han encontrado países"
+                        }
+
+                        override fun onResponse(
+                            call: Call<PaisResponse>,
+                            response: Response<PaisResponse>
+                        ) {
                         }
                     })
             }
@@ -180,7 +186,7 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    private fun buscarPokemon(texto: String?) {
+    private fun buscarPais(texto: String?) {
         val resultados = allCards.filter {
             it.name.contains(texto!!, true)
         }
@@ -188,18 +194,18 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    private fun cargarTodosLosPokemon() {
+    private fun cargarTodosLosPaises() {
         while (pageNumber <= totalPages) {
-            pokemonService.getCards("c099e29e-2bde-4974-a532-cb7e2cf90072", pageNumber)
+            PaisKey.getCards("d7t8frAA0E9DUTPZzYKNtNZNXiH1wcR1", pageNumber)
                 .enqueue(object : Callback<PaisKey> {
                     // Se define la acción a realizar en caso de éxito en la llamada
                     override fun onResponse(
                         call: Call<PaisKey>,
                         response: Response<PaisKey>
                     ) {
-                        // Se obtiene la lista de pokemones
-                        val pokemons = response.body()?.cards
-                        allCards.addAll(pokemons!!)
+                        // Se obtiene la lista de paises
+                        val paises = response.body()?.cards
+                        allCards.addAll(paises!!)
                         pageNumber++
                     }
 
