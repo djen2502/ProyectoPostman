@@ -40,7 +40,7 @@
         android:id="@+id/tvNo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="No hay pokemones"
+        android:text="No hay paises"
         android:textColor="#F44336"
         android:textSize="26sp"
         android:textStyle="bold"

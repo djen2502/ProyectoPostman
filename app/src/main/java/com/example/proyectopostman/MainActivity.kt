@@ -68,7 +68,7 @@ class MainActivity : AppCompatActivity() {
         })
 
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://apis.thatapicompany.com/9diyyzzwr4w8bf4r/countries")
+            .baseUrl("https://restcountries.com/v2/all?fields=name,capital,currencies/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
@@ -76,7 +76,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.tvNo.visibility = View.VISIBLE
 // Se crea un Listener para la respuesta de la llamada a la API
-        PaisKey.getCards("d7t8frAA0E9DUTPZzYKNtNZNXiH1wcR1", 1)
+        PaisKey.getCards( 1)
             .enqueue(object : Callback<PaisResponse> {
                 // Se define la acción a realizar en caso de éxito en la llamada
                 override fun onResponse(
@@ -122,25 +122,25 @@ class MainActivity : AppCompatActivity() {
                 binding.tvNo.visibility = View.VISIBLE
                 binding.tvNo.text = "Cargando ..."
                 val retrofit = Retrofit.Builder()
-                    .baseUrl("https://apis.thatapicompany.com/9diyyzzwr4w8bf4r/countries")
+                    .baseUrl("https://restcountries.com/v2/all?fields=name,capital/")
                     .addConverterFactory(GsonConverterFactory.create())
                     .build()
 
                 val PaisKey = retrofit.create(PaisKey::class.java)
                 val selectedItem = spinner.getItemAtPosition(position) as Int
-                PaisKey.getCards("d7t8frAA0E9DUTPZzYKNtNZNXiH1wcR1", selectedItem)
+                PaisKey.getCards(selectedItem)
                     .enqueue(object : Callback<PaisResponse> {
                         override fun onResponse(
-                            call: Call<PaisKey>,
-                            response: Response<PaisKey>
+                            call: Call<PaisResponse>,
+                            response: Response<PaisResponse>
                         ) {
                             allCards.clear()
                             miAdapter.setList(allCards)
                             val layoutManager = LinearLayoutManager(applicationContext)
                             binding.rvMain.layoutManager = layoutManager
                             binding.rvMain.adapter = miAdapter
-                            val paises = response.body()?.cards
-                            allCards.addAll(paises!!)
+                            val Pais = response.body()?.cards
+                            allCards.addAll(Pais!!)
 
                             if (response.isSuccessful) {
                                 binding.rvMain.visibility = View.VISIBLE
@@ -152,15 +152,9 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
 
-                        override fun onFailure(call: Call<PaisKey>, t: Throwable) {
+                        override fun onFailure(call: Call<PaisResponse>, t: Throwable) {
                             binding.tvNo.visibility = View.VISIBLE
-                            binding.tvNo.text = "No se han encontrado países"
-                        }
-
-                        override fun onResponse(
-                            call: Call<PaisResponse>,
-                            response: Response<PaisResponse>
-                        ) {
+                            binding.tvNo.text = "No se encontraron países"
                         }
                     })
             }
@@ -188,7 +182,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun buscarPais(texto: String?) {
         val resultados = allCards.filter {
-            it.name.contains(texto!!, true)
+            it.capital.contains(texto!!, true)
         }
         miAdapter.setList((resultados as MutableList<PaisCard>))
 
@@ -196,12 +190,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun cargarTodosLosPaises() {
         while (pageNumber <= totalPages) {
-            PaisKey.getCards("d7t8frAA0E9DUTPZzYKNtNZNXiH1wcR1", pageNumber)
-                .enqueue(object : Callback<PaisKey> {
+            PaisKey.getCards(pageNumber)
+                .enqueue(object : Callback<PaisResponse> {
                     // Se define la acción a realizar en caso de éxito en la llamada
                     override fun onResponse(
-                        call: Call<PaisKey>,
-                        response: Response<PaisKey>
+                        call: Call<PaisResponse>,
+                        response: Response<PaisResponse>
                     ) {
                         // Se obtiene la lista de paises
                         val paises = response.body()?.cards
@@ -209,11 +203,9 @@ class MainActivity : AppCompatActivity() {
                         pageNumber++
                     }
 
-                    override fun onFailure(call: Call<PaisKey>, t: Throwable) {
+                    override fun onFailure(call: Call<PaisResponse>, t: Throwable) {
 
                     }
-
-                    // Se define la acción a realizar en caso de fallo en la llamada
 
                 })
         }

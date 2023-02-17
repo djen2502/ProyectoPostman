@@ -21,11 +21,14 @@ class PaisAdapter (private var cards: List<PaisCard>) : RecyclerView.Adapter<Pai
                 println("item pulsado")
 
             }
-            itemView.findViewById<TextView>(R.id.tvRareza).text = card.slogan
+            itemView.findViewById<TextView>(R.id.tvRareza).text = card.capital
             itemView.findViewById<TextView>(R.id.tvTitle).text = card.name
+            /*
             Glide.with(itemView.context)
                 .load(card.imageUrl)
                 .into(itemView.findViewById<ImageView>(R.id.ivMain))
+
+             */
         }
 
 
