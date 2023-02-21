@@ -7,9 +7,13 @@ import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Spinner
+import android.widget.Toast
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.proyectopostman.databinding.ActivityMainBinding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -31,13 +35,17 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var context: Context
 
-    private lateinit var PaisKey: PaisKey
+    //private lateinit var PaisKey: PaisKey
     private var pageNumber = 0
     private var totalPages = 0
     private var allCards = mutableListOf<PaisCard>()
 
     private lateinit var spinner: Spinner
 
+    private var isLoading = false
+    private var isLastPage = false
+
+    private lateinit var layoutManager: LinearLayoutManager
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -53,30 +61,20 @@ class MainActivity : AppCompatActivity() {
 
         searchView = binding.searchview
 
-        miAdapter = PaisAdapter(lista)
+        miAdapter = PaisAdapter(allCards)
 
-        searchView.setOnQueryTextListener(object :
-            androidx.appcompat.widget.SearchView.OnQueryTextListener {
-            override fun onQueryTextSubmit(query: String?): Boolean {
-                return false
-            }
 
-            override fun onQueryTextChange(newText: String?): Boolean {
-                buscarPais(newText)
-                return true
-            }
-        })
+        layoutManager = LinearLayoutManager(applicationContext)
 
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://restcountries.com/v2/all?fields=name,capital,currencies/")
+            .baseUrl("https://api.magicthegathering.io/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
         val PaisKey = retrofit.create(PaisKey::class.java)
-
         binding.tvNo.visibility = View.VISIBLE
 // Se crea un Listener para la respuesta de la llamada a la API
-        PaisKey.getCards( 1)
+        PaisKey.getCards()
             .enqueue(object : Callback<PaisResponse> {
                 // Se define la acción a realizar en caso de éxito en la llamada
                 override fun onResponse(
@@ -86,13 +84,10 @@ class MainActivity : AppCompatActivity() {
                     val paises = response.body()?.cards
                     allCards.addAll(paises!!)
 
-
-
-
                     if (response.isSuccessful) {
                         binding.tvNo.visibility = View.INVISIBLE
                         miAdapter.setList(allCards)
-                        val layoutManager = LinearLayoutManager(applicationContext)
+
                         binding.rvMain.layoutManager = layoutManager
                         binding.rvMain.adapter = miAdapter
 
@@ -103,32 +98,129 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onFailure(call: Call<PaisResponse>, t: Throwable) {
                     binding.tvNo.visibility = View.VISIBLE
-                    binding.tvNo.text = "No se han encontrado países"
+                    binding.tvNo.text = "No se encontraron paises"
                 }
             })
 
 
         spinnerListener()
         // Se define la acción a realizar en caso de fallo en la llamada
+        searchView.setOnQueryTextListener(object :
+            androidx.appcompat.widget.SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                return false
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                PaisKey.getCarta(newText.toString())
+                    .enqueue(object : Callback<PaisResponse> {
+                        override fun onResponse(
+                            call: Call<PaisResponse>,
+                            response: Response<PaisResponse>
+                        ) {
+                            if (response.isSuccessful) {
+                                val result = response.body()!!.cards
+                                miAdapter.setList(result as MutableList<PaisCard>)
+                            }
+                        }
+
+                        override fun onFailure(call: Call<PaisResponse>, t: Throwable) {
+                            Toast.makeText(
+                                applicationContext,
+                                "No se pudo realizar la búsqueda",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    })
+                return true
+            }
+        })
+
+        setUpScrollListener()
+
+    }
+
+    private fun setUpScrollListener() {
+
+        binding.rvMain.setOnScrollChangeListener { _, _, _, _, _ ->
+            val totalItemCount = binding.rvMain.computeVerticalScrollRange()
+            val visibleItemCount = binding.rvMain.computeVerticalScrollExtent()
+            val pastVisibleItems = binding.rvMain.computeVerticalScrollOffset()
+
+            if (pastVisibleItems + visibleItemCount >= totalItemCount * 0.60) {
+                addNextN()
+            }
+        }
 
 
     }
 
-    fun spinnerListener(){
+    fun addNextN() {
+
+        if (pageNumber < 137) {
+
+
+            CoroutineScope(Dispatchers.IO).launch {
+
+                val retrofit = Retrofit.Builder()
+                    .baseUrl("https://api.magicthegathering.io/")
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build()
+
+                val call = retrofit.create(PaisKey::class.java)
+                    .getCards()
+                    .enqueue(object : Callback<PaisResponse> {
+                        override fun onResponse(
+                            call: Call<PaisResponse>,
+                            response: Response<PaisResponse>
+                        ) {
+                            runOnUiThread {
+
+                                if (call.isExecuted) {
+                                    val pais = response.body()?.cards
+                                    allCards.addAll(pais!!)
+                                    miAdapter.notifyDataSetChanged()
+                                }else{
+                                    println("error")
+                                }
+
+                            }
+                        }
+
+                        override fun onFailure(call: Call<PaisResponse>, t: Throwable) {
+                            println("error")
+                        }
+
+                    })
+
+
+
+            }
+
+        }
+    }
+
+
+    fun spinnerListener() {
 
         spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
                 binding.rvMain.visibility = View.INVISIBLE
                 binding.tvNo.visibility = View.VISIBLE
                 binding.tvNo.text = "Cargando ..."
                 val retrofit = Retrofit.Builder()
-                    .baseUrl("https://restcountries.com/v2/all?fields=name,capital/")
+                    .baseUrl("https://api.magicthegathering.io/")
                     .addConverterFactory(GsonConverterFactory.create())
                     .build()
 
                 val PaisKey = retrofit.create(PaisKey::class.java)
                 val selectedItem = spinner.getItemAtPosition(position) as Int
-                PaisKey.getCards(selectedItem)
+                PaisKey.getCards()
                     .enqueue(object : Callback<PaisResponse> {
                         override fun onResponse(
                             call: Call<PaisResponse>,
@@ -139,8 +231,8 @@ class MainActivity : AppCompatActivity() {
                             val layoutManager = LinearLayoutManager(applicationContext)
                             binding.rvMain.layoutManager = layoutManager
                             binding.rvMain.adapter = miAdapter
-                            val Pais = response.body()?.cards
-                            allCards.addAll(Pais!!)
+                            val paises = response.body()?.cards
+                            allCards.addAll(paises!!)
 
                             if (response.isSuccessful) {
                                 binding.rvMain.visibility = View.VISIBLE
@@ -154,13 +246,12 @@ class MainActivity : AppCompatActivity() {
 
                         override fun onFailure(call: Call<PaisResponse>, t: Throwable) {
                             binding.tvNo.visibility = View.VISIBLE
-                            binding.tvNo.text = "No se encontraron países"
+                            binding.tvNo.text = "No se ha encontrado paises"
                         }
                     })
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {
-                // no se realiza ninguna acción
             }
         }
 
@@ -182,37 +273,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun buscarPais(texto: String?) {
         val resultados = allCards.filter {
-            it.capital.contains(texto!!, true)
+            it.name.contains(texto!!, true)
         }
         miAdapter.setList((resultados as MutableList<PaisCard>))
 
-    }
-
-    private fun cargarTodosLosPaises() {
-        while (pageNumber <= totalPages) {
-            PaisKey.getCards(pageNumber)
-                .enqueue(object : Callback<PaisResponse> {
-                    // Se define la acción a realizar en caso de éxito en la llamada
-                    override fun onResponse(
-                        call: Call<PaisResponse>,
-                        response: Response<PaisResponse>
-                    ) {
-                        // Se obtiene la lista de paises
-                        val paises = response.body()?.cards
-                        allCards.addAll(paises!!)
-                        pageNumber++
-                    }
-
-                    override fun onFailure(call: Call<PaisResponse>, t: Throwable) {
-
-                    }
-
-                })
-        }
-        miAdapter.setList(allCards)
-        val layoutManager = LinearLayoutManager(applicationContext)
-        binding.rvMain.layoutManager = layoutManager
-        binding.rvMain.adapter = miAdapter
     }
 
 }

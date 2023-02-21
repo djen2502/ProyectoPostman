@@ -6,10 +6,15 @@ import retrofit2.http.Query
 
 
 interface PaisKey {
-    @GET("all")
+    @GET("v1/cards")
     fun getCards(
-        @Query("page") page: Int,
-        @Query("fields") capital: String
     ): Call<PaisResponse>
 
-}
+    @GET("v1/cards")
+    fun getCarta(
+        @Query("name") name: String
+    ): Call<PaisResponse>
+
+
+    }
+
