@@ -1,15 +1,15 @@
 package com.example.proyectopostman
 
-import android.content.Context
-import androidx.appcompat.app.AppCompatActivity
+
 import android.os.Bundle
-import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.Spinner
-import android.widget.Toast
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import android.text.InputType
+import android.util.Log
+import android.widget.Button
+import android.widget.EditText
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import com.example.proyectomodificaciones.SamirResponse
+import com.example.proyectomodificaciones.SamirService
 import com.example.proyectopostman.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,262 +21,153 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var rvMain: RecyclerView
-
     private lateinit var binding: ActivityMainBinding
-
-    private var lista = mutableListOf<PaisCard>()
-    private lateinit var miAdapter: PaisAdapter
-
-
-    private lateinit var searchView: androidx.appcompat.widget.SearchView
-
-    private lateinit var listaCopia: MutableList<Pais>
-
-    private lateinit var context: Context
-
-    //private lateinit var PaisKey: PaisKey
-    private var pageNumber = 0
-    private var totalPages = 0
-    private var allCards = mutableListOf<PaisCard>()
-
-    private lateinit var spinner: Spinner
-
-    private var isLoading = false
-    private var isLastPage = false
-
-    private lateinit var layoutManager: LinearLayoutManager
+    private var allInmuebles = mutableListOf<SamirResponse>()
+    private lateinit var btnPOST: Button
+    private lateinit var btnDELETE: Button
+    private lateinit var btnPUT: Button
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        spinner = binding.numPag
-        binding.tvNo.text = "Cargando ..."
 
-        cargarSpinner()
+        btnPOST = binding.btnPOST
+        btnDELETE = binding.btnDELETE
+        btnPUT = binding.btnPUT
 
-        rvMain = findViewById(R.id.rvMain)
-        totalPages = 1
-
-        searchView = binding.searchview
-
-        miAdapter = PaisAdapter(allCards)
-
-
-        layoutManager = LinearLayoutManager(applicationContext)
 
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://api.magicthegathering.io/")
+            .baseUrl("http://10.10.30.160:8080/api/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
-        val PaisKey = retrofit.create(PaisKey::class.java)
-        binding.tvNo.visibility = View.VISIBLE
-// Se crea un Listener para la respuesta de la llamada a la API
-        PaisKey.getCards()
-            .enqueue(object : Callback<PaisResponse> {
-                // Se define la acción a realizar en caso de éxito en la llamada
-                override fun onResponse(
-                    call: Call<PaisResponse>,
-                    response: Response<PaisResponse>
-                ) {
-                    val paises = response.body()?.cards
-                    allCards.addAll(paises!!)
+        val myApi = retrofit.create(SamirService::class.java)
 
-                    if (response.isSuccessful) {
-                        binding.tvNo.visibility = View.INVISIBLE
-                        miAdapter.setList(allCards)
+        myApi.getInmuebles().enqueue(object : Callback<List<SamirResponse>> {
+            override fun onResponse(
+                call: Call<List<SamirResponse>>,
+                response: Response<List<SamirResponse>>
+            ) {
+                val inmueble = response.body()
+                allInmuebles.addAll(inmueble!!)
 
-                        binding.rvMain.layoutManager = layoutManager
-                        binding.rvMain.adapter = miAdapter
-
-                    }
-
-
-                }
-
-                override fun onFailure(call: Call<PaisResponse>, t: Throwable) {
-                    binding.tvNo.visibility = View.VISIBLE
-                    binding.tvNo.text = "No se encontraron paises"
-                }
-            })
-
-
-        spinnerListener()
-        // Se define la acción a realizar en caso de fallo en la llamada
-        searchView.setOnQueryTextListener(object :
-            androidx.appcompat.widget.SearchView.OnQueryTextListener {
-            override fun onQueryTextSubmit(query: String?): Boolean {
-                return false
+                if (response.isSuccessful) {}
             }
 
-            override fun onQueryTextChange(newText: String?): Boolean {
-                PaisKey.getCarta(newText.toString())
-                    .enqueue(object : Callback<PaisResponse> {
-                        override fun onResponse(
-                            call: Call<PaisResponse>,
-                            response: Response<PaisResponse>
-                        ) {
-                            if (response.isSuccessful) {
-                                val result = response.body()!!.cards
-                                miAdapter.setList(result as MutableList<PaisCard>)
-                            }
-                        }
-
-                        override fun onFailure(call: Call<PaisResponse>, t: Throwable) {
-                            Toast.makeText(
-                                applicationContext,
-                                "No se pudo realizar la búsqueda",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    })
-                return true
+            override fun onFailure(call: Call<List<SamirResponse>>, t: Throwable) {
+                println(call.toString())
+                println(t.toString())
             }
         })
 
-        setUpScrollListener()
-
-    }
-
-    private fun setUpScrollListener() {
-
-        binding.rvMain.setOnScrollChangeListener { _, _, _, _, _ ->
-            val totalItemCount = binding.rvMain.computeVerticalScrollRange()
-            val visibleItemCount = binding.rvMain.computeVerticalScrollExtent()
-            val pastVisibleItems = binding.rvMain.computeVerticalScrollOffset()
-
-            if (pastVisibleItems + visibleItemCount >= totalItemCount * 0.60) {
-                addNextN()
-            }
-        }
-
-
-    }
-
-    fun addNextN() {
-
-        if (pageNumber < 137) {
-
+        btnPOST.setOnClickListener {
 
             CoroutineScope(Dispatchers.IO).launch {
 
                 val retrofit = Retrofit.Builder()
-                    .baseUrl("https://api.magicthegathering.io/")
+                    .baseUrl("http://10.10.30.160:8080/api/")
                     .addConverterFactory(GsonConverterFactory.create())
                     .build()
 
-                val call = retrofit.create(PaisKey::class.java)
-                    .getCards()
-                    .enqueue(object : Callback<PaisResponse> {
-                        override fun onResponse(
-                            call: Call<PaisResponse>,
-                            response: Response<PaisResponse>
-                        ) {
-                            runOnUiThread {
+                val myApi = retrofit.create(SamirService::class.java)
 
-                                if (call.isExecuted) {
-                                    val pais = response.body()?.cards
-                                    allCards.addAll(pais!!)
-                                    miAdapter.notifyDataSetChanged()
-                                }else{
-                                    println("error")
-                                }
+                val myData = SamirResponse(
+                    "Iglu en la Antartida", 300.99f, "Un palacio de nieve en una zona muy fria", 60, 40, "Antartida",
+                    "Costal", "2022-02-23", 8, 4, 40
+                )
 
-                            }
+                myApi.postMyData(myData).enqueue(object : Callback<SamirResponse> {
+
+                    override fun onFailure(call: Call<SamirResponse>, t: Throwable) {
+
+                    }
+
+                    override fun onResponse(
+                        call: Call<SamirResponse>,
+                        response: Response<SamirResponse>
+                    ) {
+                        if (response.isSuccessful) {
+                            val myResponse = response.body()
+                            Log.i("POST", "Se ha introducido un objeto con el id: " + myResponse?.idInmueble.toString())
+                        } else {
+                            System.err.println(response.errorBody()?.string())
                         }
-
-                        override fun onFailure(call: Call<PaisResponse>, t: Throwable) {
-                            println("error")
-                        }
-
-                    })
-
-
-
+                    }
+                })
             }
-
         }
-    }
 
+        btnPUT.setOnClickListener {
 
-    fun spinnerListener() {
+            CoroutineScope(Dispatchers.IO).launch {
 
-        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(
-                parent: AdapterView<*>?,
-                view: View?,
-                position: Int,
-                id: Long
-            ) {
-                binding.rvMain.visibility = View.INVISIBLE
-                binding.tvNo.visibility = View.VISIBLE
-                binding.tvNo.text = "Cargando ..."
                 val retrofit = Retrofit.Builder()
-                    .baseUrl("https://api.magicthegathering.io/")
+                    .baseUrl("http://10.10.30.160:8080/api/")
                     .addConverterFactory(GsonConverterFactory.create())
                     .build()
 
-                val PaisKey = retrofit.create(PaisKey::class.java)
-                val selectedItem = spinner.getItemAtPosition(position) as Int
-                PaisKey.getCards()
-                    .enqueue(object : Callback<PaisResponse> {
-                        override fun onResponse(
-                            call: Call<PaisResponse>,
-                            response: Response<PaisResponse>
-                        ) {
-                            allCards.clear()
-                            miAdapter.setList(allCards)
-                            val layoutManager = LinearLayoutManager(applicationContext)
-                            binding.rvMain.layoutManager = layoutManager
-                            binding.rvMain.adapter = miAdapter
-                            val paises = response.body()?.cards
-                            allCards.addAll(paises!!)
+                val myApi = retrofit.create(SamirService::class.java)
 
-                            if (response.isSuccessful) {
-                                binding.rvMain.visibility = View.VISIBLE
-                                binding.tvNo.visibility = View.INVISIBLE
-                                miAdapter.setList(allCards)
-                                val layoutManager = LinearLayoutManager(applicationContext)
-                                binding.rvMain.layoutManager = layoutManager
-                                binding.rvMain.adapter = miAdapter
-                            }
+                val myData = SamirResponse(
+                    "Iglu en la Antartida", 300.99f, "Un palacio de nieve en una zona muy fria", 60, 40, "Antartida",
+                    "Costal", "2022-02-23", 8, 4, 2
+                )
+
+                myApi.postMyData(myData).enqueue(object : Callback<SamirResponse> {
+
+                    override fun onFailure(call: Call<SamirResponse>, t: Throwable) {
+
+                    }
+
+                    override fun onResponse(
+                        call: Call<SamirResponse>,
+                        response: Response<SamirResponse>
+                    ) {
+                        if (response.isSuccessful) {
+                            val myResponse = response.body()
+                            Log.i("POST", "Cambiado el objeto con id: " + myResponse?.idInmueble.toString())
+                        } else {
+                            System.err.println(response.errorBody()?.string())
                         }
-
-                        override fun onFailure(call: Call<PaisResponse>, t: Throwable) {
-                            binding.tvNo.visibility = View.VISIBLE
-                            binding.tvNo.text = "No se ha encontrado paises"
-                        }
-                    })
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>?) {
+                    }
+                })
             }
         }
+        btnDELETE.setOnClickListener {
+
+            val builder = AlertDialog.Builder(this)
+            builder.setTitle("Introduce el id del objeto que se borrará:")
 
 
-    }
+            val input = EditText(this)
+            input.inputType = InputType.TYPE_CLASS_NUMBER
+            builder.setView(input)
 
-    private fun cargarSpinner() {
 
-        val numbers = ArrayList<Int>()
-        for (i in 1..137) {
-            numbers.add(i)
+            builder.setPositiveButton("Aceptar") { dialog, which ->
+                val number = input.text.toString().toInt()
+
+                val retrofit = Retrofit.Builder()
+                    .baseUrl("http://10.10.30.160:8080/api/inmuebles/")
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build()
+
+                val myApi = retrofit.create(SamirService::class.java)
+
+                myApi.deleteInmueble(input.text.toString()).enqueue(object : Callback<Void> {
+                    override fun onResponse(call: Call<Void>, response: Response<Void>) {
+                        Log.i("delete", "Se ha borrado exitosamente")
+                    }
+                    override fun onFailure(call: Call<Void>, t: Throwable) {
+                        Log.i("delete", "Se ha producido un error a la hora de borrar")
+                    }
+                })
+            }
+            builder.setNegativeButton("Cancelar") { dialog, which ->
+                dialog.cancel()
+            }
+            builder.show()
         }
-
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, numbers)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinner.adapter = adapter
-
     }
-
-    private fun buscarPais(texto: String?) {
-        val resultados = allCards.filter {
-            it.name.contains(texto!!, true)
-        }
-        miAdapter.setList((resultados as MutableList<PaisCard>))
-
-    }
-
 }
